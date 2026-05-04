@@ -1,32 +1,35 @@
 import os
 import re
+import time
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
+from supabase import create_client, Client
 
-app = Flask(__name__)
+# TRUCCO MAGICO: Disattiviamo la cartella statica locale per poter reindirizzare 
+# automaticamente le foto verso Supabase senza dover toccare i file HTML!
+app = Flask(__name__, static_folder='finto_static')
 
 # --- CONFIGURAZIONE ---
-# Cerca la variabile di Vercel, se non c'è usa il database locale SQLite
 uri = os.getenv("DATABASE_URL", "sqlite:///freego.db")
 if uri.startswith("postgres://"):
     uri = uri.replace("postgres://", "postgresql://", 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", 'chiave_segreta_freego_123') 
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Generatore di Token sicuri per l'email
+# Variabili Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
-# --- FUNZIONE CONTROLLO PASSWORD ---
 def password_sicura(password):
-    # Almeno 8 caratteri, 1 maiuscola, 1 minuscola, 1 numero
     if len(password) < 8: return False
     if not re.search(r"[A-Z]", password): return False
     if not re.search(r"[a-z]", password): return False
@@ -34,7 +37,6 @@ def password_sicura(password):
     return True
 
 # --- TABELLE DEL DATABASE ---
-
 class Utente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(50), nullable=False)
@@ -90,8 +92,18 @@ def conta_non_letti():
         non_letti = Messaggio.query.filter_by(destinatario_id=session['utente_id'], letto=False).count()
     return dict(messaggi_non_letti=non_letti)
 
-# --- ROTTE PRINCIPALI ---
+# --- ROTTA MAGICA PER LE FOTO ---
+@app.route('/static/uploads/<path:filename>')
+def proxy_immagini(filename):
+    # Se non c'è la foto o non siamo connessi, mostra un'immagine grigia di base
+    if filename == 'default.jpg' or not SUPABASE_URL:
+        return redirect("https://placehold.co/600x400/e2e8f0/94a3b8?text=Nessuna+Foto")
+    
+    # Altrimenti, reindirizza Vercel a pescare la foto dal "secchio" di Supabase
+    link_supabase = f"{SUPABASE_URL}/storage/v1/object/public/uploads/{filename}"
+    return redirect(link_supabase)
 
+# --- ROTTE PRINCIPALI ---
 @app.route('/')
 def home():
     annunci_dal_db = Annuncio.query.filter_by(acquirente_id=None).order_by(Annuncio.id.desc()).all()
@@ -136,18 +148,11 @@ def registrati():
             db.session.add(nuovo_utente)
             db.session.commit()
             
-            # Generazione Token Email
             token = s.dumps(email, salt='email-confirm')
             link = url_for('conferma_email', token=token, _external=True)
+            print(f"LINK VERIFICA (SIMULATO): {link}")
             
-            # STAMPA IL LINK NEL TERMINALE DI VS CODE PER POTERLO CLICCARE
-            print("\n" + "="*60)
-            print(f" SIMULAZIONE EMAIL INVIATA A: {email} ")
-            print(" Clicca su questo link per verificare l'account:")
-            print(f" {link} ")
-            print("="*60 + "\n")
-            
-            messaggio = "Registrazione completata! Controlla il terminale di VS Code per il link di verifica."
+            messaggio = "Registrazione completata!"
             return render_template('login.html', messaggio=messaggio)
             
     return render_template('registrazione.html', errore=errore)
@@ -155,10 +160,9 @@ def registrati():
 @app.route('/conferma_email/<token>')
 def conferma_email(token):
     try:
-        # Il token scade dopo 3600 secondi (1 ora)
         email = s.loads(token, salt='email-confirm', max_age=3600)
     except (SignatureExpired, BadTimeSignature):
-        return "Il link di verifica è scaduto o non valido. Richiedine uno nuovo dal tuo profilo."
+        return "Il link di verifica è scaduto o non valido."
     
     utente = Utente.query.filter_by(email=email).first()
     if utente:
@@ -175,11 +179,7 @@ def verifica_email():
     if not utente.is_verificato:
         token = s.dumps(utente.email, salt='email-confirm')
         link = url_for('conferma_email', token=token, _external=True)
-        print("\n" + "="*60)
-        print(f" NUOVA SIMULAZIONE EMAIL INVIATA A: {utente.email} ")
-        print(" Clicca su questo link per verificare l'account:")
-        print(f" {link} ")
-        print("="*60 + "\n")
+        print(f"NUOVO LINK VERIFICA (SIMULATO): {link}")
         
     return redirect(url_for('profilo'))
 
@@ -218,7 +218,7 @@ def cambia_password():
         if not check_password_hash(utente.password, request.form['vecchia_password']):
             errore = "Vecchia password non corretta."
         elif not password_sicura(nuova_pass):
-            errore = "La nuova password deve contenere almeno 8 caratteri, una maiuscola, una minuscola e un numero."
+            errore = "La nuova password deve contenere almeno 8 caratteri."
         else:
             utente.password = generate_password_hash(nuova_pass)
             db.session.commit()
@@ -226,20 +226,31 @@ def cambia_password():
     return render_template('cambia_password.html', errore=errore, messaggio=messaggio)
 
 # --- ROTTE ANNUNCI ---
-
 @app.route('/nuovo_annuncio', methods=['GET', 'POST'])
 def nuovo_annuncio():
     if not session.get('utente_id'): return redirect(url_for('login'))
     if request.method == 'POST':
         file_foto = request.files.get('immagine')
         nome_immagine_db = "default.jpg" 
+        
+        # Nuova logica: se c'è una foto, inviala a Supabase Storage
         if file_foto and file_foto.filename != '':
-            nome_file = secure_filename(file_foto.filename)
-            if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                os.makedirs(app.config['UPLOAD_FOLDER'])
-            percorso_completo = os.path.join(app.config['UPLOAD_FOLDER'], nome_file)
-            file_foto.save(percorso_completo)
-            nome_immagine_db = nome_file 
+            file_bytes = file_foto.read()
+            estensione = file_foto.filename.rsplit('.', 1)[1].lower() if '.' in file_foto.filename else 'jpg'
+            # Creiamo un nome unico usando il tempo esatto
+            nome_univoco = f"img_{int(time.time())}_{session['utente_id']}.{estensione}"
+            
+            if SUPABASE_URL and SUPABASE_KEY:
+                try:
+                    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+                    supabase.storage.from_('uploads').upload(
+                        path=nome_univoco,
+                        file=file_bytes,
+                        file_options={"content-type": file_foto.content_type}
+                    )
+                    nome_immagine_db = nome_univoco
+                except Exception as e:
+                    print(f"Errore upload foto: {e}")
 
         nuovo = Annuncio(
             titolo=request.form['titolo'], luogo=request.form['luogo'], 
@@ -258,17 +269,32 @@ def modifica_annuncio(id):
     if not session.get('utente_id'): return redirect(url_for('login'))
     annuncio = Annuncio.query.get_or_404(id)
     if annuncio.utente_id != session['utente_id']: return redirect(url_for('profilo'))
+    
     if request.method == 'POST':
         annuncio.titolo = request.form['titolo']
         annuncio.luogo = request.form['luogo']
         annuncio.categoria = request.form.get('categoria', 'Altro')
         annuncio.descrizione = request.form.get('descrizione', '')
         annuncio.spedizione = True if request.form.get('spedizione') else False
+        
         file_foto = request.files.get('immagine')
         if file_foto and file_foto.filename != '':
-            nome_file = secure_filename(file_foto.filename)
-            file_foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nome_file))
-            annuncio.immagine = nome_file
+            file_bytes = file_foto.read()
+            estensione = file_foto.filename.rsplit('.', 1)[1].lower() if '.' in file_foto.filename else 'jpg'
+            nome_univoco = f"img_{int(time.time())}_{session['utente_id']}.{estensione}"
+            
+            if SUPABASE_URL and SUPABASE_KEY:
+                try:
+                    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+                    supabase.storage.from_('uploads').upload(
+                        path=nome_univoco,
+                        file=file_bytes,
+                        file_options={"content-type": file_foto.content_type}
+                    )
+                    annuncio.immagine = nome_univoco
+                except Exception as e:
+                    print(f"Errore upload foto: {e}")
+                    
         db.session.commit()
         return redirect(url_for('profilo'))
     return render_template('modifica_annuncio.html', annuncio=annuncio)
@@ -298,7 +324,6 @@ def conferma_regalo(annuncio_id, acquirente_id):
     return redirect(url_for('chat', interlocutore_id=acquirente_id))
 
 # --- ROTTE RECENSIONI E PROFILO PUBBLICO ---
-
 @app.route('/utente/<int:id>')
 def profilo_pubblico(id):
     utente_cercato = Utente.query.get_or_404(id)
@@ -340,7 +365,6 @@ def lascia_recensione(destinatario_id):
     return redirect(url_for('profilo_pubblico', id=destinatario_id))
 
 # --- CHAT E MESSAGGI ---
-
 @app.route('/invia_messaggio/<int:annuncio_id>', methods=['POST'])
 def invia_messaggio(annuncio_id):
     if not session.get('utente_id'): return redirect(url_for('login'))
@@ -389,14 +413,12 @@ def chat(interlocutore_id):
     in_trattativa = Annuncio.query.filter(Annuncio.id.in_(annunci_ids), Annuncio.utente_id == io, Annuncio.acquirente_id == None).all()
     ha_ricevuto_da_me = Annuncio.query.filter_by(utente_id=interlocutore_id, acquirente_id=io).first()
 
-    # Vercel ha bisogno di leggere questo comando direttamente
     with app.app_context():
         db.create_all()
 
     db.session.commit()
     return render_template('chat.html', messaggi=conversazione, interlocutore=interlocutore, in_trattativa=in_trattativa, ha_ricevuto=ha_ricevuto_da_me)
 
-# Vercel ha bisogno di leggere questo comando direttamente
 with app.app_context():
     db.create_all()
 
