@@ -2,6 +2,7 @@ import os
 import re
 import time
 from datetime import datetime
+import flask
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,9 +10,7 @@ from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from supabase import create_client, Client
 
-# TRUCCO MAGICO: Disattiviamo la cartella statica locale per poter reindirizzare 
-# automaticamente le foto verso Supabase senza dover toccare i file HTML!
-app = Flask(__name__, static_folder='finto_static')
+app = Flask(__name__)
 
 # --- CONFIGURAZIONE ---
 uri = os.getenv("DATABASE_URL", "sqlite:///freego.db")
@@ -92,16 +91,22 @@ def conta_non_letti():
         non_letti = Messaggio.query.filter_by(destinatario_id=session['utente_id'], letto=False).count()
     return dict(messaggi_non_letti=non_letti)
 
-# --- ROTTA MAGICA PER LE FOTO ---
-@app.route('/static/uploads/<path:filename>')
-def proxy_immagini(filename):
-    # Se non c'è la foto o non siamo connessi, mostra un'immagine grigia di base
-    if filename == 'default.jpg' or not SUPABASE_URL:
-        return redirect("https://placehold.co/600x400/e2e8f0/94a3b8?text=Nessuna+Foto")
-    
-    # Altrimenti, reindirizza Vercel a pescare la foto dal "secchio" di Supabase
-    link_supabase = f"{SUPABASE_URL}/storage/v1/object/public/uploads/{filename}"
-    return redirect(link_supabase)
+# --- NUOVO TRUCCO MAGICO PER LE FOTO ---
+@app.context_processor
+def override_url_for():
+    def custom_url_for(endpoint, **values):
+        # Intercettiamo i file HTML che cercano di caricare un'immagine dagli uploads
+        if endpoint == 'static' and 'filename' in values:
+            if values['filename'].startswith('uploads/'):
+                nome_file = values['filename'].replace('uploads/', '')
+                # Se non c'è la foto, mostra immagine grigia
+                if nome_file == 'default.jpg' or not SUPABASE_URL:
+                    return "https://placehold.co/600x400/e2e8f0/94a3b8?text=Nessuna+Foto"
+                # Altrimenti crea il link diretto al cloud di Supabase!
+                return f"{SUPABASE_URL}/storage/v1/object/public/uploads/{nome_file}"
+        # Per tutto il resto (es. CSS o loghi), usa il comportamento normale
+        return flask.url_for(endpoint, **values)
+    return dict(url_for=custom_url_for)
 
 # --- ROTTE PRINCIPALI ---
 @app.route('/')
@@ -233,11 +238,10 @@ def nuovo_annuncio():
         file_foto = request.files.get('immagine')
         nome_immagine_db = "default.jpg" 
         
-        # Nuova logica: se c'è una foto, inviala a Supabase Storage
+        # Invio a Supabase Storage
         if file_foto and file_foto.filename != '':
             file_bytes = file_foto.read()
             estensione = file_foto.filename.rsplit('.', 1)[1].lower() if '.' in file_foto.filename else 'jpg'
-            # Creiamo un nome unico usando il tempo esatto
             nome_univoco = f"img_{int(time.time())}_{session['utente_id']}.{estensione}"
             
             if SUPABASE_URL and SUPABASE_KEY:
