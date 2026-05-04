@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Inserisci un regalo - FreeGo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <nav class="bg-white shadow-sm p-4 border-b">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <a href="/" class="text-2xl font-extrabold text-green-700">Free<span class="text-green-500">Go</span></a>
+            <a href="/" class="text-gray-500 hover:text-gray-800 font-medium"><i class="fa-solid fa-arrow-left mr-1"></i> Annulla e torna indietro</a>
+        </div>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full border border-gray-100">
+            <h2 class="text-3xl font-extrabold text-center text-gray-800 mb-2">Regala un oggetto</h2>
+            <p class="text-center text-gray-500 mb-8">Fai spazio in casa e felice qualcun altro!</p>
+            
+            <form action="/nuovo_annuncio" method="POST" enctype="multipart/form-data" class="space-y-5">
+                
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">Cosa regali?</label>
+                    <input type="text" name="titolo" required placeholder="Es. Divano a due posti, Libri di scuola..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">Categoria</label>
+                    <div class="relative">
+                        <select name="categoria" class="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-green-500 focus:outline-none bg-white">
+                            <option value="Arredamento">Arredamento</option>
+                            <option value="Elettronica">Elettronica</option>
+                            <option value="Abbigliamento">Abbigliamento</option>
+                            <option value="Libri & Film">Libri & Film</option>
+                            <option value="Sport & Tempo Libero">Sport & Tempo Libero</option>
+                            <option value="Altro" selected>Altro</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">Dove si trova?</label>
+                    <input type="text" name="luogo" required placeholder="Città o CAP" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">Aggiungi dettagli (Opzionale)</label>
+                    <textarea name="descrizione" rows="3" placeholder="Scrivi in che condizioni si trova, le misure, gli orari per il ritiro..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg flex items-center">
+                    <input type="checkbox" id="spedizione" name="spedizione" class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                    <label for="spedizione" class="ml-3 text-gray-700 font-medium cursor-pointer">
+                        Sono disposto a spedire (a carico di chi riceve)
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1"><i class="fa-solid fa-camera mr-2"></i>Carica una foto</label>
+                    <input type="file" name="immagine" accept="image/*" class="w-full text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition">
+                </div>
+
+                <button type="submit" class="w-full bg-orange-500 text-white font-bold text-lg py-4 rounded-lg shadow-md hover:bg-orange-600 hover:shadow-lg transition mt-4">
+                    Pubblica l'annuncio
+                </button>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

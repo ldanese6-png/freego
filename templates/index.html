@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeGo - Riusa, Regala, Risparmia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 antialiased flex flex-col min-h-screen">
+
+    <nav class="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <a href="/" class="flex items-center gap-2 group">
+                    <div class="bg-emerald-500 text-white p-2 rounded-xl group-hover:bg-emerald-400 transition-colors shadow-lg">
+                        <i class="fa-solid fa-leaf text-xl"></i>
+                    </div>
+                    <span class="text-3xl font-extrabold tracking-tight">Free<span class="text-emerald-500">Go</span></span>
+                </a>
+
+                <div class="flex items-center gap-4">
+                    {% if session.get('utente_nome') %}
+                        <a href="/messaggi" class="relative text-slate-300 hover:text-emerald-400 transition-colors">
+                            <i class="fa-regular fa-envelope text-2xl"></i>
+                            {% if messaggi_non_letti > 0 %}
+                                <span class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-slate-900 shadow-sm">{{ messaggi_non_letti }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="/profilo" class="hidden md:flex items-center gap-2 text-slate-200 hover:text-white font-medium transition-colors px-3 py-2 rounded-lg hover:bg-slate-800 border border-transparent hover:border-slate-700">
+                            <img src="https://ui-avatars.com/api/?name={{ session.get('utente_nome') }}&background=10b981&color=fff" class="w-8 h-8 rounded-full border border-slate-600">
+                            {{ session.get('utente_nome') }}
+                        </a>
+                        <a href="/nuovo_annuncio" class="bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-full hover:bg-emerald-400 transition-all shadow-lg hover:shadow-emerald-500/30 flex items-center gap-2 ml-2">
+                            <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Regala</span>
+                        </a>
+                    {% else %}
+                        <a href="/login" class="text-slate-300 hover:text-white font-bold px-4 py-2 transition-colors hidden sm:block">Accedi</a>
+                        <a href="/registrati" class="bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-full hover:bg-emerald-400 transition-all shadow-lg hover:shadow-emerald-500/30">Registrati</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="relative bg-gradient-to-br from-emerald-800 via-emerald-600 to-teal-500 overflow-hidden shadow-inner">
+        <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 20px 20px;"></div>
+        
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 text-center flex flex-col items-center">
+            <h1 class="text-4xl md:text-6xl font-extrabold text-white tracking-tight mb-6 drop-shadow-md">
+                L'usato che non costa <span class="text-emerald-200 underline decoration-4 underline-offset-8">nulla.</span>
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 mb-10 max-w-2xl font-medium drop-shadow-sm">
+                Trova oggetti gratuiti vicino a te. Ritira a mano o paga solo la spedizione. Dai una seconda vita alle cose.
+            </p>
+
+            <form action="/cerca" method="GET" class="w-full max-w-4xl bg-white p-2 md:p-3 rounded-2xl md:rounded-full shadow-2xl shadow-slate-900/20 flex flex-col md:flex-row gap-2 border-4 border-white/20 backdrop-blur-sm">
+                <div class="flex-1 flex items-center px-4 py-2 md:py-0 border-b md:border-b-0 md:border-r border-slate-200">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 mr-3"></i>
+                    <input type="text" name="q" placeholder="Cosa cerchi?" class="w-full bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400 font-medium text-lg outline-none">
+                </div>
+                
+                <div class="flex-1 flex items-center px-4 py-2 md:py-0 border-b md:border-b-0 md:border-r border-slate-200">
+                    <i class="fa-solid fa-location-dot text-slate-400 mr-3"></i>
+                    <input type="text" name="luogo" placeholder="Città o CAP" class="w-full bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400 font-medium outline-none">
+                </div>
+
+                <div class="flex-1 flex items-center px-4 py-2 md:py-0">
+                    <i class="fa-solid fa-layer-group text-slate-400 mr-3"></i>
+                    <select name="categoria" class="w-full bg-transparent border-none focus:ring-0 text-slate-600 font-medium outline-none appearance-none cursor-pointer">
+                        <option value="Tutte">Tutte le categorie</option>
+                        <option value="Arredamento">Arredamento</option>
+                        <option value="Elettronica">Elettronica</option>
+                        <option value="Abbigliamento">Abbigliamento</option>
+                        <option value="Libri & Film">Libri & Film</option>
+                        <option value="Altro">Altro</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="bg-slate-900 text-white font-bold py-3 md:py-4 px-8 rounded-xl md:rounded-full hover:bg-slate-800 transition-all w-full md:w-auto mt-2 md:mt-0 flex items-center justify-center gap-2">
+                    Cerca <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 w-full">
+        <div class="w-full h-24 bg-slate-200 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 shadow-inner overflow-hidden">
+            <span class="font-bold tracking-widest uppercase text-sm">Spazio Pubblicitario</span>
+            <span class="text-xs mt-1">728 x 90</span>
+        </div>
+    </div>
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        <div class="flex justify-between items-end mb-8 border-b border-slate-200 pb-4">
+            <h2 class="text-3xl font-extrabold text-slate-800">Le ultime occasioni</h2>
+            <p class="text-sm font-bold text-emerald-600 uppercase tracking-widest hidden sm:block bg-emerald-100 px-3 py-1 rounded-full">Solo in regalo</p>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+            {% for annuncio in annunci %}
+            <a href="/annuncio/{{ annuncio.id }}" class="group block bg-white p-3 rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 hover:border-emerald-300 hover:-translate-y-1">
+                
+                <div class="relative w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-4">
+                    <div class="absolute top-3 left-3 z-10 bg-slate-900/80 backdrop-blur text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded-full shadow-sm">
+                        {{ annuncio.categoria }}
+                    </div>
+                    <div class="absolute bottom-3 left-3 z-10 bg-white/95 backdrop-blur text-slate-800 text-[10px] font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 border border-slate-100">
+                        {% if annuncio.spedizione %}
+                            <i class="fa-solid fa-box text-emerald-600"></i> Spedisce
+                        {% else %}
+                            <i class="fa-solid fa-handshake text-orange-500"></i> A mano
+                        {% endif %}
+                    </div>
+
+                    {% if annuncio.immagine %}
+                        <img src="{{ url_for('static', filename='uploads/' + annuncio.immagine) }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-slate-300">
+                            <i class="fa-solid fa-image text-5xl"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="px-2 pb-2">
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold text-slate-800 text-lg truncate group-hover:text-emerald-600 transition-colors">{{ annuncio.titolo }}</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-1 truncate"><i class="fa-solid fa-location-dot opacity-50"></i> {{ annuncio.luogo }}</p>
+                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                        <span class="text-emerald-600 font-black text-sm uppercase">Gratis</span>
+                        <p class="text-xs text-slate-400 font-medium">Da: {{ annuncio.autore.nome }}</p>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+
+            {% if not annunci %}
+            <div class="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-slate-300 shadow-sm">
+                <i class="fa-solid fa-box-open text-6xl text-slate-200 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800">Tutto vuoto!</h3>
+                <p class="text-slate-500 mt-2">Al momento non ci sono oggetti in regalo.</p>
+                <a href="/nuovo_annuncio" class="inline-block mt-4 bg-emerald-600 text-white font-bold px-6 py-3 rounded-full hover:bg-emerald-500 shadow-lg shadow-emerald-200 transition-all hover:-translate-y-0.5">Sii il primo a regalare!</a>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-12 mt-auto border-t-4 border-emerald-500">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="inline-flex items-center justify-center bg-slate-800 text-emerald-500 p-4 rounded-2xl mb-6 shadow-inner">
+                <i class="fa-solid fa-leaf text-3xl"></i>
+            </div>
+            <p class="text-white font-extrabold text-2xl tracking-tight">FreeGo</p>
+            <p class="text-sm mt-2 opacity-70">© 2026 FreeGo. L'economia circolare a portata di click.</p>
+        </div>
+    </footer>
+
+    <div id="cookie-banner" class="hidden fixed bottom-0 left-0 w-full bg-slate-900 border-t border-emerald-500 p-4 md:p-6 z-[100] shadow-2xl">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-slate-300 text-sm md:text-base leading-relaxed">
+                <p><i class="fa-solid fa-cookie-bite text-emerald-500 mr-2 text-xl"></i> <strong>Rispettiamo la tua privacy.</strong> Utilizziamo i cookie per garantirti la migliore esperienza sul nostro sito e personalizzare i contenuti. Puoi scegliere se accettarli tutti o rifiutarli.</p>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto shrink-0">
+                <button id="reject-cookies" class="flex-1 md:flex-none px-5 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl hover:bg-slate-700 hover:text-white transition border border-slate-700 text-sm">
+                    Rifiuta
+                </button>
+                <button id="accept-cookies" class="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 text-sm">
+                    Accetta tutti
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const cookieBanner = document.getElementById("cookie-banner");
+            const acceptBtn = document.getElementById("accept-cookies");
+            const rejectBtn = document.getElementById("reject-cookies");
+
+            if (!localStorage.getItem("cookie_scelta_freego")) {
+                cookieBanner.classList.remove("hidden");
+            }
+            acceptBtn.addEventListener("click", function() {
+                localStorage.setItem("cookie_scelta_freego", "accettati");
+                cookieBanner.classList.add("hidden");
+            });
+            rejectBtn.addEventListener("click", function() {
+                localStorage.setItem("cookie_scelta_freego", "rifiutati");
+                cookieBanner.classList.add("hidden");
+            });
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat con {{ interlocutore.nome }} - FreeGo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 font-sans h-screen flex flex-col">
+
+    <nav class="bg-slate-900 text-white p-3 shadow-md flex items-center justify-between border-b border-emerald-500">
+        <a href="/messaggi" class="text-slate-300 hover:text-emerald-400 text-xl pl-2 transition"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="flex flex-col items-center">
+            <a href="{{ url_for('profilo_pubblico', id=interlocutore.id) }}" class="font-extrabold text-white hover:text-emerald-400 hover:underline text-lg tracking-tight">{{ interlocutore.nome }}</a>
+            {% if interlocutore.media_voti > 0 %}
+                <p class="text-xs text-yellow-400 font-bold"><i class="fa-solid fa-star"></i> {{ interlocutore.media_voti }}</p>
+            {% endif %}
+        </div>
+        <div class="w-8"></div>
+    </nav>
+
+    {% if in_trattativa %}
+        <div class="bg-slate-800 border-b border-slate-700 p-3 shadow-md z-10 space-y-2">
+            <p class="text-xs text-emerald-400 font-bold text-center uppercase tracking-widest mb-2"><i class="fa-solid fa-box-open"></i> Oggetti in trattativa</p>
+            {% for a in in_trattativa %}
+                <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-3">
+                        {% if a.immagine %}
+                            <img src="{{ url_for('static', filename='uploads/' + a.immagine) }}" class="w-10 h-10 object-cover rounded-lg shadow-sm">
+                        {% endif %}
+                        <p class="font-bold text-sm text-slate-800 truncate max-w-[150px] sm:max-w-xs">{{ a.titolo }}</p>
+                    </div>
+                    <form action="{{ url_for('conferma_regalo', annuncio_id=a.id, acquirente_id=interlocutore.id) }}" method="POST">
+                        <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-500 shadow-md transition">VENDUTO</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if ha_ricevuto %}
+        <div class="bg-white border-b border-slate-200 p-4 shadow-sm flex flex-col items-center text-center z-10">
+            <h3 class="font-bold text-emerald-700 text-base"><i class="fa-solid fa-handshake"></i> Transazioni concluse</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-3">Hai ricevuto oggetti da {{ interlocutore.nome }}. Come ti sei trovato?</p>
+            <a href="{{ url_for('profilo_pubblico', id=interlocutore.id) }}#sezione-recensioni" class="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 shadow-md transition hover:-translate-y-0.5">
+                Lascia un Feedback sul Profilo
+            </a>
+        </div>
+    {% endif %}
+
+    <main class="flex-grow overflow-y-auto p-4 space-y-4 flex flex-col">
+        {% for m in messaggi %}
+            <div class="flex {% if m.mittente_id == session['utente_id'] %}justify-end{% endif %}">
+                <div class="max-w-[80%] sm:max-w-xs p-3 rounded-2xl shadow-sm {% if m.mittente_id == session['utente_id'] %}bg-emerald-600 text-white rounded-tr-none{% else %}bg-white border border-slate-200 text-slate-800 rounded-tl-none{% endif %}">
+                    
+                    {% if m.annuncio_rif and m.mittente_id == session['utente_id'] %}
+                        <p class="text-[10px] font-bold opacity-75 mb-1 border-b border-white/20 pb-1"><i class="fa-solid fa-tag"></i> Riferimento: {{ m.annuncio_rif.titolo }}</p>
+                    {% elif m.annuncio_rif %}
+                        <p class="text-[10px] font-bold text-emerald-600 mb-1 border-b border-slate-100 pb-1"><i class="fa-solid fa-tag"></i> Riferimento: {{ m.annuncio_rif.titolo }}</p>
+                    {% endif %}
+                    
+                    <p class="text-sm leading-relaxed">{{ m.testo }}</p>
+                    <p class="text-[10px] {% if m.mittente_id == session['utente_id'] %}text-emerald-200{% else %}text-slate-400{% endif %} mt-1 text-right font-medium">{{ m.data_invio.strftime('%H:%M') }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </main>
+
+    <footer class="bg-white p-3 border-t border-slate-200">
+        <form action="{{ url_for('chat', interlocutore_id=interlocutore.id) }}" method="POST" class="flex gap-2 max-w-4xl mx-auto">
+            <input type="text" name="testo" placeholder="Scrivi un messaggio..." required class="flex-grow p-3 bg-slate-100 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm shadow-inner">
+            <button type="submit" class="bg-slate-900 text-emerald-400 w-12 h-12 rounded-full flex items-center justify-center hover:bg-slate-800 shadow-md transition hover:-translate-y-0.5">
+                <i class="fa-solid fa-paper-plane text-lg"></i>
+            </button>
+        </form>
+    </footer>
+
+</body>
+</html>

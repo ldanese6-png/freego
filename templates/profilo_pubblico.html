@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profilo di {{ utente_pubblico.nome }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>html { scroll-behavior: smooth; }</style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <nav class="bg-slate-900 text-white shadow-md p-4 border-b sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <a href="/" class="text-emerald-500 font-extrabold text-2xl tracking-tight">FreeGo</a>
+            <a href="/" class="text-slate-300 hover:text-emerald-400 font-medium transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Torna alla Home
+            </a>
+        </div>
+    </nav>
+
+    <header class="bg-white p-10 border-b border-slate-200 text-center shadow-sm">
+        <div class="w-24 h-24 mx-auto bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-4 border-4 border-white shadow-lg">
+            <i class="fa-solid fa-user text-4xl"></i>
+        </div>
+        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">{{ utente_pubblico.nome }}</h1>
+        
+        <div class="flex justify-center items-center gap-2 mt-3 text-lg">
+            {% if utente_pubblico.media_voti > 0 %}
+                <span class="text-yellow-400 text-2xl"><i class="fa-solid fa-star"></i></span>
+                <span class="font-extrabold text-slate-900 text-2xl">{{ utente_pubblico.media_voti }}</span>
+                <span class="text-slate-500 font-medium ml-1">({{ recensioni|length }} recensioni)</span>
+            {% else %}
+                <span class="text-slate-400 text-sm font-medium border border-slate-200 px-3 py-1 rounded-full bg-slate-50">Nessuna recensione</span>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto p-4 md:p-6 grid md:grid-cols-2 gap-8 mt-4 w-full">
+        
+        <aside class="space-y-6">
+            <div id="sezione-recensioni" class="bg-white p-6 rounded-3xl shadow-md border border-slate-200 scroll-mt-24">
+                <h3 class="font-bold text-slate-400 uppercase text-xs tracking-widest mb-4">Lascia il tuo feedback</h3>
+                
+                {% if puo_recensire %}
+                    <form action="{{ url_for('lascia_recensione', destinatario_id=utente_pubblico.id) }}" method="POST" class="space-y-4">
+                        <label class="text-sm font-bold text-slate-700 block">Valutazione (da 1 a 5 stelle):</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="voto" min="1" max="5" required class="w-20 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 font-bold text-center text-lg shadow-inner" placeholder="5">
+                            <i class="fa-solid fa-star text-yellow-400 text-2xl"></i>
+                        </div>
+                        
+                        <label class="text-sm font-bold text-slate-700 mt-4 block">Cosa pensi di {{ utente_pubblico.nome }}?</label>
+                        <textarea name="commento" required class="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 shadow-inner resize-none text-sm" rows="3" placeholder="Scrivi com'è andata la transazione..."></textarea>
+                        
+                        <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 shadow-lg shadow-slate-900/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane text-emerald-400"></i> Pubblica Feedback
+                        </button>
+                    </form>
+                
+                {% elif session.get('utente_id') == utente_pubblico.id %}
+                    <p class="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Stai visualizzando il tuo profilo pubblico.</p>
+                
+                {% elif not session.get('utente_id') %}
+                    <div class="text-center bg-slate-50 p-6 rounded-xl border border-slate-100">
+                        <p class="text-sm text-slate-600 font-medium">Devi fare il <a href="/login" class="text-emerald-600 font-bold hover:underline">Login</a> per poter lasciare una recensione.</p>
+                    </div>
+                
+                {% elif ha_comprato %}
+                    <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-100 text-center shadow-inner">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-4xl mb-3"></i>
+                        <p class="text-lg text-emerald-900 font-bold tracking-tight">Feedback completato</p>
+                        <p class="text-sm text-emerald-700 mt-2 leading-relaxed">Hai già lasciato una recensione per tutti gli oggetti che hai ricevuto da {{ utente_pubblico.nome }}. Grazie!</p>
+                    </div>
+
+                {% else %}
+                    <div class="bg-slate-50 p-6 rounded-xl text-center border border-slate-100 shadow-inner">
+                        <i class="fa-solid fa-lock text-slate-300 text-4xl mb-3"></i>
+                        <p class="text-lg text-slate-700 font-bold tracking-tight">Feedback bloccato</p>
+                        <p class="text-sm text-slate-500 mt-2 leading-relaxed">Il sistema di recensioni è chiuso.<br>Potrai valutare {{ utente_pubblico.nome }} solo dopo aver ricevuto un suo oggetto (verificato tramite chat).</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-400 uppercase text-xs tracking-widest mb-6 border-b border-slate-100 pb-2">Opinioni Ricevute</h3>
+                <div class="space-y-6">
+                    {% for r in recensioni %}
+                        <div class="border-b border-slate-50 pb-5 last:border-0 last:pb-0">
+                            <div class="flex justify-between items-start mb-2">
+                                <p class="font-bold text-slate-900 text-sm">{{ r.mittente.nome }}</p>
+                                <span class="text-xs text-slate-400 font-medium">{{ r.data.strftime('%d/%m/%Y') }}</span>
+                            </div>
+                            <div class="flex items-center gap-1 mb-2">
+                                {% for i in range(1, 6) %}
+                                    {% if r.voto >= i %}
+                                        <i class="fa-solid fa-star text-yellow-400 text-xs"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-star text-slate-200 text-xs"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <p class="text-sm text-slate-600 italic leading-relaxed">"{{ r.commento }}"</p>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-6">
+                            <i class="fa-regular fa-comment-dots text-4xl text-slate-200 mb-3"></i>
+                            <p class="text-sm text-slate-500 font-medium">Nessuna recensione ancora.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+
+        <section>
+            <h3 class="font-bold text-slate-400 uppercase text-xs tracking-widest mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-gift"></i> Regali Attivi
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+                {% for a in annunci %}
+                    <a href="/annuncio/{{ a.id }}" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 hover:shadow-md hover:border-emerald-300 transition-all group">
+                        {% if a.immagine %}
+                            <img src="{{ url_for('static', filename='uploads/' + a.immagine) }}" class="w-full h-32 object-cover rounded-xl mb-3 group-hover:scale-105 transition-transform">
+                        {% else %}
+                            <div class="w-full h-32 bg-slate-100 rounded-xl mb-3 flex items-center justify-center text-slate-300 group-hover:bg-slate-200 transition-colors">
+                                <i class="fa-solid fa-image text-3xl"></i>
+                            </div>
+                        {% endif %}
+                        <p class="font-bold text-sm text-slate-800 truncate group-hover:text-emerald-600 transition-colors">{{ a.titolo }}</p>
+                        <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-location-dot opacity-50"></i> {{ a.luogo }}</p>
+                    </a>
+                {% else %}
+                    <div class="col-span-2 text-center py-10 bg-white rounded-2xl border border-dashed border-slate-300">
+                        <i class="fa-solid fa-box-open text-4xl text-slate-200 mb-2"></i>
+                        <p class="text-sm text-slate-500 font-medium">Nessun regalo attivo al momento.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+    </main>
+</body>
+</html>

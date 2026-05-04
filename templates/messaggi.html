@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I Miei Messaggi - FreeGo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 flex flex-col min-h-screen">
+
+    <nav class="bg-slate-900 text-white shadow-sm p-4 border-b border-emerald-500 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <a href="/" class="text-slate-300 hover:text-emerald-400 font-medium transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> Torna alla Home
+            </a>
+            <h1 class="font-bold tracking-widest uppercase text-sm text-emerald-500">Messaggi</h1>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-4xl mx-auto p-4 w-full mt-6">
+        <div class="bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden">
+            {% for conv in conversazioni %}
+                <a href="{{ url_for('chat', interlocutore_id=conv.interlocutore.id) }}" class="flex items-center gap-4 p-5 border-b border-slate-100 hover:bg-slate-50 transition relative group">
+                    <img src="https://ui-avatars.com/api/?name={{ conv.interlocutore.nome }}&background=10b981&color=fff" class="w-14 h-14 rounded-full border-2 border-white shadow-sm group-hover:scale-105 transition">
+                    
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="font-extrabold text-slate-900 text-lg {% if conv.da_leggere %}text-emerald-600{% endif %}">
+                                {{ conv.interlocutore.nome }}
+                            </h3>
+                            <span class="text-xs text-slate-400 font-medium">{{ conv.ultimo_messaggio.data_invio.strftime('%d/%m %H:%M') }}</span>
+                        </div>
+                        <p class="text-sm text-slate-500 truncate {% if conv.da_leggere %}font-bold text-slate-800{% endif %}">
+                            {% if conv.ultimo_messaggio.mittente_id == session['utente_id'] %}Tu: {% endif %}{{ conv.ultimo_messaggio.testo }}
+                        </p>
+                    </div>
+
+                    {% if conv.da_leggere %}
+                        <div class="w-3 h-3 bg-red-500 rounded-full shadow-sm absolute right-5 top-1/2 -translate-y-1/2"></div>
+                    {% endif %}
+                </a>
+            {% else %}
+                <div class="p-12 text-center">
+                    <i class="fa-regular fa-comments text-6xl text-slate-200 mb-4"></i>
+                    <p class="text-slate-500 font-medium text-lg">Non hai ancora scambiato messaggi.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </main>
+
+</body>
+</html>
