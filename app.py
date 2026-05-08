@@ -6,7 +6,6 @@ import flask
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignature
 from supabase import create_client, Client
 
@@ -91,20 +90,16 @@ def conta_non_letti():
         non_letti = Messaggio.query.filter_by(destinatario_id=session['utente_id'], letto=False).count()
     return dict(messaggi_non_letti=non_letti)
 
-# --- NUOVO TRUCCO MAGICO PER LE FOTO ---
+# --- TRUCCO MAGICO PER LE FOTO ---
 @app.context_processor
 def override_url_for():
     def custom_url_for(endpoint, **values):
-        # Intercettiamo i file HTML che cercano di caricare un'immagine dagli uploads
         if endpoint == 'static' and 'filename' in values:
             if values['filename'].startswith('uploads/'):
                 nome_file = values['filename'].replace('uploads/', '')
-                # Se non c'è la foto, mostra immagine grigia
                 if nome_file == 'default.jpg' or not SUPABASE_URL:
                     return "https://placehold.co/600x400/e2e8f0/94a3b8?text=Nessuna+Foto"
-                # Altrimenti crea il link diretto al cloud di Supabase!
                 return f"{SUPABASE_URL}/storage/v1/object/public/uploads/{nome_file}"
-        # Per tutto il resto (es. CSS o loghi), usa il comportamento normale
         return flask.url_for(endpoint, **values)
     return dict(url_for=custom_url_for)
 
@@ -238,23 +233,38 @@ def nuovo_annuncio():
         file_foto = request.files.get('immagine')
         nome_immagine_db = "default.jpg" 
         
-        # Invio a Supabase Storage
+        print("--- INIZIO DEBUG FOTO ---")
+        if file_foto:
+            print(f"1. Foto ricevuta dal sito! Nome: {file_foto.filename}")
+        else:
+            print("1. ATTENZIONE: Nessuna foto ricevuta dal sito!")
+
+        # Nuova logica: se c'è una foto, inviala a Supabase Storage
         if file_foto and file_foto.filename != '':
             file_bytes = file_foto.read()
             estensione = file_foto.filename.rsplit('.', 1)[1].lower() if '.' in file_foto.filename else 'jpg'
             nome_univoco = f"img_{int(time.time())}_{session['utente_id']}.{estensione}"
             
+            print(f"2. Nome generato: {nome_univoco}")
+            print(f"3. Variabili su Vercel - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
+            
             if SUPABASE_URL and SUPABASE_KEY:
                 try:
                     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-                    supabase.storage.from_('uploads').upload(
+                    print("4. Connessione a Supabase aperta.")
+                    res = supabase.storage.from_('uploads').upload(
                         path=nome_univoco,
                         file=file_bytes,
                         file_options={"content-type": file_foto.content_type}
                     )
+                    print(f"5. Risposta di Supabase: {res}")
                     nome_immagine_db = nome_univoco
                 except Exception as e:
-                    print(f"Errore upload foto: {e}")
+                    print(f"6. ERRORE SCHIANTO UPLOAD: {e}")
+            else:
+                print("ERRORE: Vercel non sta leggendo le variabili URL e KEY!")
+                
+        print("--- FINE DEBUG FOTO ---")
 
         nuovo = Annuncio(
             titolo=request.form['titolo'], luogo=request.form['luogo'], 
